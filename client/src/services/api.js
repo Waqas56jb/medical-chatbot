@@ -1,13 +1,10 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
-/**
- * Placeholder API client — wire up to your backend when ready.
- */
-export async function sendChatMessage(message) {
+export async function sendChatMessage({ message, history = [], collected = {} }) {
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, history, collected }),
   })
 
   if (!response.ok) {

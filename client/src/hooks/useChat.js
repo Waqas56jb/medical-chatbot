@@ -1,49 +1,105 @@
 import { useCallback, useState } from 'react'
+import { sendChatMessage } from '../services/api'
 
-const WELCOME_MESSAGE = {
-  id: 'welcome',
+export const QUICK_REPLIES = [
+  { id: 'appointment', emoji: '📅', label: 'Book Doctor Appointment' },
+  { id: 'availability', emoji: '🔍', label: 'Check Doctor Availability' },
+  { id: 'symptoms', emoji: '🩺', label: 'Symptom Check & Triage' },
+  { id: 'faq', emoji: '💊', label: 'Patient FAQ & Insurance' },
+]
+
+const INITIAL_MESSAGE = {
+  id: 'intro',
   role: 'assistant',
   content:
-    'Hello! I\'m your medical assistant. Ask me general health questions and I\'ll do my best to help. For emergencies, please contact local emergency services immediately.',
+    'Hey! 👋 Welcome to MDC Medical Care — your personal health assistant is here! How can I help you today? 🏥',
+  quickReplies: QUICK_REPLIES,
   timestamp: new Date().toISOString(),
 }
 
 export function useChat() {
-  const [messages, setMessages] = useState([WELCOME_MESSAGE])
+  const [hasStarted, setHasStarted] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [collected, setCollected] = useState({})
   const [isLoading, setIsLoading] = useState(false)
 
-  const sendMessage = useCallback(async (content) => {
-    const trimmed = content.trim()
-    if (!trimmed) return
+  const startConversation = useCallback(() => {
+    setHasStarted(true)
+    setMessages([INITIAL_MESSAGE])
+    setCollected({})
+  }, [])
 
-    const userMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: trimmed,
-      timestamp: new Date().toISOString(),
-    }
+  const sendMessage = useCallback(
+    async (content) => {
+      const trimmed = content.trim()
+      if (!trimmed) return
 
-    setMessages((prev) => [...prev, userMessage])
-    setIsLoading(true)
+      const userMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: trimmed,
+        timestamp: new Date().toISOString(),
+      }
 
-    // Frontend-only placeholder — replace with api.sendChatMessage() when backend is ready
-    await new Promise((resolve) => setTimeout(resolve, 600))
+      setMessages((prev) =>
+        prev.map((m) => (m.quickReplies ? { ...m, quickReplies: undefined } : m))
+      )
+      setMessages((prev) => [...prev, userMessage])
+      setIsLoading(true)
 
-    const botMessage = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content:
-        'This is a frontend-only setup. Connect the backend API in `src/services/api.js` to get real responses.',
-      timestamp: new Date().toISOString(),
-    }
+      try {
+        const history = messages
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .map((m) => ({ role: m.role, content: m.content }))
 
-    setMessages((prev) => [...prev, botMessage])
+        const data = await sendChatMessage({
+          message: trimmed,
+          history,
+          collected,
+        })
+
+        setCollected(data.collected || {})
+
+        const botMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: data.reply,
+          quickReplies: data.quickReplies,
+          timestamp: new Date().toISOString(),
+        }
+
+        setMessages((prev) => [...prev, botMessage])
+      } catch {
+        const errorMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content:
+            'Sorry, I\'m having trouble connecting right now. Please make sure the server is running and try again.',
+          quickReplies: QUICK_REPLIES,
+          timestamp: new Date().toISOString(),
+        }
+        setMessages((prev) => [...prev, errorMessage])
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [messages, collected]
+  )
+
+  const resetChat = useCallback(() => {
+    setHasStarted(false)
+    setMessages([])
+    setCollected({})
     setIsLoading(false)
   }, [])
 
-  const clearChat = useCallback(() => {
-    setMessages([WELCOME_MESSAGE])
-  }, [])
-
-  return { messages, isLoading, sendMessage, clearChat }
+  return {
+    hasStarted,
+    messages,
+    isLoading,
+    collected,
+    startConversation,
+    sendMessage,
+    resetChat,
+  }
 }

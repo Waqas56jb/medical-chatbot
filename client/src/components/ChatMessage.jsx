@@ -1,13 +1,31 @@
-export default function ChatMessage({ message }) {
+import BotLogo from './BotLogo'
+import QuickReplies from './QuickReplies'
+
+export default function ChatMessage({ message, onQuickReply, isLoading }) {
   const isUser = message.role === 'user'
 
-  return (
-    <div className={`chat-message ${isUser ? 'chat-message--user' : 'chat-message--bot'}`}>
-      <div className="chat-message__avatar" aria-hidden="true">
-        {isUser ? 'You' : 'AI'}
+  if (isUser) {
+    return (
+      <div className="chat-message chat-message--user">
+        <div className="chat-message__bubble chat-message__bubble--user">
+          <p>{message.content}</p>
+        </div>
       </div>
-      <div className="chat-message__bubble">
-        <p>{message.content}</p>
+    )
+  }
+
+  return (
+    <div className="chat-message chat-message--bot">
+      <BotLogo size="xs" />
+      <div className="chat-message__content">
+        <div className="chat-message__bubble chat-message__bubble--bot">
+          <p>{message.content}</p>
+        </div>
+        <QuickReplies
+          options={message.quickReplies}
+          onSelect={onQuickReply}
+          disabled={isLoading}
+        />
       </div>
     </div>
   )
