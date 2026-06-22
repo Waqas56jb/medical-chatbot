@@ -12,16 +12,61 @@ const systemPrompt = fs.readFileSync(
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey })
 
+const FIELDS = ['name', 'email', 'phone', 'disease']
+
+function getConversationStage(collected) {
+  if (!collected.name) return 'needs_name'
+  if (!collected.email) return 'needs_email'
+  if (!collected.phone) return 'needs_phone'
+  if (!collected.disease) return 'needs_concern'
+  return 'ready_to_confirm'
+}
+
+function buildContext(collected, isSessionStart) {
+  const parts = []
+
+  if (isSessionStart) {
+    parts.push(
+      'The patient just opened the chat (session start). Send your Phase 1 welcome message. Do NOT ask for their name yet.'
+    )
+    return parts.join('\n')
+  }
+
+  const filled = FIELDS.filter((f) => collected[f])
+  if (filled.length > 0) {
+    parts.push(`Information already collected: ${JSON.stringify(collected)}`)
+    parts.push(`Current stage: ${getConversationStage(collected)}`)
+    parts.push('Acknowledge their last message before asking for the next missing field.')
+  } else {
+    parts.push('No patient details collected yet. Focus on understanding what they need before collecting personal info.')
+  }
+
+  return parts.join('\n')
+}
+
+function mergeCollected(parsed, existing) {
+  const merged = { ...existing }
+  for (const field of FIELDS) {
+    const value = parsed.collected?.[field]
+    if (value && typeof value === 'string' && value.trim()) {
+      merged[field] = value.trim()
+    }
+  }
+  return merged
+}
+
 export async function getChatResponse(message, history = [], existingCollected = {}) {
-  const contextNote =
-    Object.values(existingCollected).some(Boolean)
-      ? `\n\nAlready collected so far: ${JSON.stringify(existingCollected)}`
-      : ''
+  const isSessionStart = message === '[session_start]'
+  const userContent = isSessionStart
+    ? '[session_start]'
+    : message
+
+  const contextNote = buildContext(existingCollected, isSessionStart)
 
   const messages = [
-    { role: 'system', content: systemPrompt + contextNote },
+    { role: 'system', content: `${systemPrompt}\n\n---\n\n## Current session\n${contextNote}` },
     ...history.map((m) => ({ role: m.role, content: m.content })),
-    { role: 'user', content: message },
+    { role: 'user', content: userContent },
   ]
 
   const completion = await openai.chat.completions.create({
@@ -42,12 +87,7 @@ export async function getChatResponse(message, history = [], existingCollected =
     throw new Error('Invalid JSON from OpenAI')
   }
 
-  const collected = {
-    name: parsed.collected?.name || existingCollected.name || null,
-    email: parsed.collected?.email || existingCollected.email || null,
-    phone: parsed.collected?.phone || existingCollected.phone || null,
-    disease: parsed.collected?.disease || existingCollected.disease || null,
-  }
+  const collected = mergeCollected(parsed, existingCollected)
 
   return {
     reply: parsed.message,

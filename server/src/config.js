@@ -15,7 +15,7 @@ export const config = {
   openai: {
     apiKey: process.env.OPENAI_API_KEY,
     model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    temperature: Number(process.env.OPENAI_TEMPERATURE) || 0.4,
-    maxTokens: Number(process.env.OPENAI_MAX_TOKENS) || 500,
+    temperature: Number(process.env.OPENAI_TEMPERATURE) || 0.65,
+    maxTokens: Number(process.env.OPENAI_MAX_TOKENS) || 600,
   },
 }

@@ -2,20 +2,10 @@ import { useCallback, useState } from 'react'
 import { sendChatMessage } from '../services/api'
 
 export const QUICK_REPLIES = [
-  { id: 'appointment', emoji: '📅', label: 'Book Doctor Appointment' },
-  { id: 'availability', emoji: '🔍', label: 'Check Doctor Availability' },
-  { id: 'symptoms', emoji: '🩺', label: 'Symptom Check & Triage' },
-  { id: 'faq', emoji: '💊', label: 'Patient FAQ & Insurance' },
+  { id: 'appointment', emoji: '📅', label: 'Book an appointment' },
+  { id: 'availability', emoji: '🔍', label: 'Check doctor availability' },
+  { id: 'hours', emoji: '🏥', label: 'Clinic hours & location' },
 ]
-
-const INITIAL_MESSAGE = {
-  id: 'intro',
-  role: 'assistant',
-  content:
-    'Hey! 👋 Welcome to MDC Medical Care — your personal health assistant is here! How can I help you today? 🏥',
-  quickReplies: QUICK_REPLIES,
-  timestamp: new Date().toISOString(),
-}
 
 export function useChat() {
   const [hasStarted, setHasStarted] = useState(false)
@@ -23,10 +13,44 @@ export function useChat() {
   const [collected, setCollected] = useState({})
   const [isLoading, setIsLoading] = useState(false)
 
-  const startConversation = useCallback(() => {
+  const startConversation = useCallback(async () => {
     setHasStarted(true)
-    setMessages([INITIAL_MESSAGE])
+    setMessages([])
     setCollected({})
+    setIsLoading(true)
+
+    try {
+      const data = await sendChatMessage({
+        message: '[session_start]',
+        history: [],
+        collected: {},
+      })
+
+      setCollected(data.collected || {})
+
+      setMessages([
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: data.reply,
+          quickReplies: data.quickReplies || QUICK_REPLIES,
+          timestamp: new Date().toISOString(),
+        },
+      ])
+    } catch {
+      setMessages([
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content:
+            'Welcome to MDC Medical Care! I\'m Aria, your virtual care coordinator. I can help you book an appointment, check doctor availability, or answer questions about our clinic. How can I help you today?',
+          quickReplies: QUICK_REPLIES,
+          timestamp: new Date().toISOString(),
+        },
+      ])
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
   const sendMessage = useCallback(
@@ -74,7 +98,7 @@ export function useChat() {
           id: crypto.randomUUID(),
           role: 'assistant',
           content:
-            'Sorry, I\'m having trouble connecting right now. Please make sure the server is running and try again.',
+            'I\'m sorry — I\'m having a little trouble connecting right now. Please make sure the server is running and try again in a moment.',
           quickReplies: QUICK_REPLIES,
           timestamp: new Date().toISOString(),
         }

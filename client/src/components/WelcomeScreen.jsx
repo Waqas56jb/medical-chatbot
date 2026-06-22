@@ -7,8 +7,8 @@ export default function WelcomeScreen({ onStart }) {
         <BotLogo size="lg" />
         <h2 className="welcome-screen__title">Welcome to MDC Medical Care</h2>
         <p className="welcome-screen__desc">
-          I&apos;m your personal health assistant. Together, we&apos;ll book appointments,
-          check doctor availability, and answer your medical questions.
+          Meet Aria, your virtual care coordinator. Book appointments, check doctor
+          availability, and get answers — all in a friendly conversation.
         </p>
       </div>
 
